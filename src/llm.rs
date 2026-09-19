@@ -1,23 +1,23 @@
 use std::time::Duration;
 use api_ollama::{ChatMessage, ChatRequest, ChatResponse, OllamaClient, OllamaResult};
-use crate::configuration::{ConfigurationBaseUrl, ConfigurationModel};
+use crate::configuration::{RuaConfigurationBaseUrl, RuaConfigurationModel};
 
 pub struct RuaOllamaClient {
-    model: ConfigurationModel,
+    model: RuaConfigurationModel,
     _client: OllamaClient,
 }
 
 pub type RuaChatMessageContent = String;
 
 impl RuaOllamaClient {
-    pub(crate) async fn new(model: ConfigurationModel, base_url: ConfigurationBaseUrl, timeout: Option<Duration>) -> Self {
+    pub(crate) async fn new(model: RuaConfigurationModel, base_url: RuaConfigurationBaseUrl, timeout: Option<Duration>) -> Self {
         RuaOllamaClient {
             model,
             _client: RuaOllamaClient::init_client(base_url, timeout).await,
         }
     }
 
-    async fn init_client(base_url: ConfigurationBaseUrl, timeout: Option<Duration>) -> OllamaClient {
+    async fn init_client(base_url: RuaConfigurationBaseUrl, timeout: Option<Duration>) -> OllamaClient {
         let timeout = timeout.unwrap_or_else(|| OllamaClient::recommended_timeout_default());
 
         let mut client = OllamaClient::new(base_url.to_string(), timeout);
