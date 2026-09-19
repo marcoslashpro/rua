@@ -1,11 +1,15 @@
 use std::fs;
 use std::path::PathBuf;
+use std::sync::LazyLock;
 use serde::{Deserialize, Serialize};
+
+pub static CONFIGURATION: LazyLock<RuaConfiguration> = LazyLock::new(|| RuaConfiguration::new().unwrap());
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RuaConfiguration {
     pub model: RuaConfigurationModel,
     pub base_url: RuaConfigurationBaseUrl,
+    pub database_host_uri: RuaConfigurationDatabase,
 }
 
 impl RuaConfiguration {
@@ -20,3 +24,4 @@ impl RuaConfiguration {
 
 pub type RuaConfigurationModel = String;
 pub type RuaConfigurationBaseUrl = String;
+pub type RuaConfigurationDatabase = String;
