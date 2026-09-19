@@ -1,7 +1,8 @@
 use std::io;
 use std::io::Write;
-use api_ollama::{ChatMessage, ChatResponse, MessageRole};
-use crate::llm::{RuaOllamaClient, RuaChatMessageContent};
+use api_ollama::{ChatResponse};
+use crate::conversation::{RuaConversation, RuaConversationMessage, RuaConversationMessageContent, RuaConversationMessageKind};
+use crate::llm::{RuaOllamaClient};
 
 pub struct RuaCliRunner {
     client: RuaOllamaClient,
@@ -10,67 +11,70 @@ pub struct RuaCliRunner {
 impl RuaCliRunner {
     pub(crate) fn new(client: RuaOllamaClient) -> Self { Self { client } }
 
-    pub(crate) async fn run(&mut self, convo: Option<Vec<ChatMessage>>) -> Vec<ChatMessage> {
-        let mut convo = convo.unwrap_or_else(|| Vec::new());
-
+    pub(crate) async fn run(&mut self) -> Result<(), sqlx::error::Error> {
         loop {
             let input = match self.get_user_input() {
-                Ok(input) => input, // input validated.
+                Ok(input) => input,
                 Err(e) => {
                     match e {
                         RuaRunnerError::Eof(message) => {
                             println!("{}", message);
-                            break;
+                            
+                            return Ok (());
                         }
                         RuaRunnerError::Flush(message) => {
                             println!("Error during stdin flushing {}", message);
-                            break;
+                            
+                            return Ok (());
                         }
                         RuaRunnerError::Exit => {
                             println!("Exiting...");
-                            break;
+                            
+                            return Ok (());
                         }
                         RuaRunnerError::Empty => { continue }
                         RuaRunnerError::Unknown(message) => {
                             println!("Unknown error: {}", message);
-                            break;
+                            
+                            return Ok (());
                         }
                     }
                 }
             };
 
-            convo.push(
-                ChatMessage {
-                    role: MessageRole::User,
-                    content: input.to_string(),
-                    images: None,
-                    tool_calls: None,
-                }
-            );
+            RuaConversation::add_message(
+                RuaConversationMessage::new(
+                    RuaConversationMessageKind::User,
+                    input.to_string()
+                )
+            ).await?;
 
-            let response = match self.client.chat(convo.clone()).await {
+            let response = match self.client.chat(RuaConversation::get_all_message(50).await?).await {
                 Ok(response) => response,
                 Err(e) => {
                     println!("Error while generating model's response: {:?}", e.to_string());
-                    break;
+                    
+                    return Ok (());
                 }
             };
 
-            convo.push(response.clone().message);
+            RuaConversation::add_message(
+                RuaConversation::convert_ollama_message_to_rua_message_compatible(
+                    response.clone().message)
+            ).await?;
 
             match self.print_model_response(response) {
                 Ok(_) => (),
                 Err(e) => {
                     println!("Error while printing model response: {:?}", e);
-                    break;
+                    
+                    return Ok (());
                 }
             }
         }
-
-        convo
     }
 
-    fn get_user_input(&self) -> RuaRunnerResult<RuaChatMessageContent> {
+    fn get_user_input(&self) -> RuaRunnerResult<RuaConversationMessageContent> {
         print!("You: ");
         match io::stdout().flush() {
             Ok(_) => (),
@@ -142,6 +146,7 @@ impl From<&str> for RuaRunnerExitCommand {
             "quit" => RuaRunnerExitCommand::Exit,
             "Exit" => RuaRunnerExitCommand::Exit,
             "exit" => RuaRunnerExitCommand::Exit,
+            "q" => RuaRunnerExitCommand::Exit,
             &_ => RuaRunnerExitCommand::NotFound
         }
     }

@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-api_ollama = { version = "0.2.0", features = ["full"] }
+api_ollama = { version = "0.5.1", features = ["full"] }
 serde = "1.0.229"
+sqlx = { version = "0.9.0", features = ["sqlite", "uuid", "runtime-tokio", "tls-rustls-ring-webpki", ] }
 tokio = { version = "1.52", features = ["full"] }
 toml = "1.1.6"
+uuid = { version = "1.26.1", features = ["v7"] }
